@@ -38,38 +38,37 @@ Credit card fraud costs the global economy billions annually. The challenge is h
 credit-card-fraud-detection/
 ├── README.md
 ├── LICENSE                     MIT
-├── requirements.txt
-├── config.py                   All paths, seeds, constants
-├── run_pipeline.py             ← single entrypoint, reproduces everything
+├── requirements.txt            Package dependencies (pinned exact versions)
+├── config.py                   Paths, seeds, and constants config
+├── run_pipeline.py             ← single entrypoint, reproduces the whole pipeline
 ├── data/
 │   ├── raw/                    gitignored — creditcard.csv lives here
-│   └── processed/
-├── notebooks/
-│   └── 01_eda.ipynb            EDA with 5–8 key findings
+│   └── processed/              Processed data partitions (gitignored)
 ├── src/
-│   ├── data_loader.py          Load + validate dataset
-│   ├── preprocessing.py        Scaling with leakage guard
-│   ├── resampling.py           4 imbalance strategies (train-only)
-│   ├── train.py                Model builders + grid search
-│   ├── evaluate.py             Metrics, plots, JSON logging
-│   ├── cost_analysis.py        Cost-based threshold selection
-│   ├── explain.py              SHAP summary + waterfall
-│   └── autoencoder.py          Unsupervised anomaly detection
+│   ├── data_loader.py          Load + validate raw dataset
+│   ├── eda.py                  Exploratory Data Analysis & visualisations
+│   ├── preprocessing.py        Stratified splitting & scaling with leakage guard
+│   ├── resampling.py           4 class-imbalance strategies (SMOTE, Tomek, etc.)
+│   ├── train.py                Model building + XGBoost/RF grid search
+│   ├── evaluate.py             Evaluation metrics & PR/ROC curves
+│   ├── cost_analysis.py        Cost-sensitive decision threshold sweeps
+│   ├── explain.py              SHAP summary & local explanation waterfall
+│   └── autoencoder.py          Unsupervised neural network autoencoder
 ├── app/
-│   └── streamlit_app.py        Interactive demo
+│   ├── streamlit_app.py        Interactive user/analyst demo app
+│   └── api.py                  FastAPI endpoint for real-time model serving
 ├── tests/
-│   ├── test_preprocessing.py   Leakage guard tests
-│   ├── test_resampling.py      Resampling shape + API tests
-│   └── test_evaluate.py        Metric function tests
-├── models/                     gitignored — .joblib files
+│   ├── test_preprocessing.py   Data scaling & leakage guard unit tests
+│   ├── test_resampling.py      Oversampling/undersampling unit tests
+│   ├── test_evaluate.py        Custom evaluation metric correctness tests
+│   └── test_api.py             FastAPI endpoint & mock client unit tests
+├── models/                     gitignored — serialized .joblib files
 ├── reports/
-│   ├── figures/                All plots
-│   ├── metrics.json            All run metrics
-│   └── model_card.md
+│   ├── figures/                All analytical plots & app screenshot
+│   ├── metrics.json            Metrics database for all runs
+│   └── model_card.md           Formal scikit-learn style model card
 └── docs/
-    ├── interview_prep.md
-    ├── resume_bullets.md
-    └── learning_notes.md
+    └── learning_notes.md       Developer design notes & interview prep guide
 ```
 
 ---

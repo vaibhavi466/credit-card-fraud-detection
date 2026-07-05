@@ -16,9 +16,49 @@ client = TestClient(app)
 
 
 @pytest.fixture(scope="module", autouse=True)
-def setup_api():
-    """Trigger startup event to load model and scaler."""
+def setup_api(tmp_path_factory):
+    """Create a dummy fitted model and scaler, save to a temp dir, override config.MODELS_DIR, and load them."""
+    import numpy as np
+    import joblib
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+    import config
+
+    import pandas as pd
+
+    # Fit a dummy classifier (needs 30 features with feature names to avoid warnings)
+    feature_order = [
+        "Time", "V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10",
+        "V11", "V12", "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20",
+        "V21", "V22", "V23", "V24", "V25", "V26", "V27", "V28", "Amount"
+    ]
+    df_dummy = pd.DataFrame(np.random.randn(10, 30), columns=feature_order)
+    y_dummy = np.random.randint(0, 2, size=10)
+    model = LogisticRegression()
+    model.fit(df_dummy, y_dummy)
+
+    # Fit a dummy scaler on Time and Amount with correct column names
+    scaler = StandardScaler()
+    scaler.fit(df_dummy[["Amount", "Time"]])
+
+    # Save to a temporary directory
+    tmp_dir = tmp_path_factory.mktemp("models")
+    model_path = tmp_dir / "best_model.joblib"
+    scaler_path = tmp_dir / "scaler.joblib"
+    joblib.dump(model, model_path)
+    joblib.dump(scaler, scaler_path)
+
+    # Backup and override config.MODELS_DIR
+    old_models_dir = config.MODELS_DIR
+    config.MODELS_DIR = tmp_dir
+
+    # Trigger API startup loading
     startup_event()
+
+    yield
+
+    # Restore config.MODELS_DIR
+    config.MODELS_DIR = old_models_dir
 
 
 def test_health_check():
