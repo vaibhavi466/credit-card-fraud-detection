@@ -9,7 +9,7 @@ import pytest
 
 # Allow import from repo root
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from app.api import app, startup_event
+from app.api import app, load_resources
 
 # Create TestClient
 client = TestClient(app)
@@ -53,7 +53,7 @@ def setup_api(tmp_path_factory):
     config.MODELS_DIR = tmp_dir
 
     # Trigger API startup loading
-    startup_event()
+    load_resources()
 
     yield
 

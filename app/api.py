@@ -8,6 +8,8 @@ Launch with:
 import sys
 from pathlib import Path
 from typing import Optional
+import json
+from contextlib import asynccontextmanager
 import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
@@ -17,22 +19,15 @@ from pydantic import BaseModel, Field
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import config
 
-app = FastAPI(
-    title="Credit Card Fraud Detection API",
-    description="Real-time model inference endpoint for detecting fraudulent credit card transactions.",
-    version="1.0",
-)
-
 # Global variables for model resources
 model = None
 scaler = None
-optimal_threshold = 0.32  # cost-optimal threshold from pipeline run
+optimal_threshold = 0.32  # Default fallback if metrics.json is missing or fails
 
 
-@app.on_event("startup")
-def startup_event():
-    """Load the trained model and scaler on API startup."""
-    global model, scaler
+def load_resources():
+    """Load model, scaler, and dynamic threshold."""
+    global model, scaler, optimal_threshold
     model_path = config.MODELS_DIR / "best_model.joblib"
     scaler_path = config.MODELS_DIR / "scaler.joblib"
 
@@ -44,6 +39,35 @@ def startup_event():
     model = joblib.load(model_path)
     scaler = joblib.load(scaler_path)
     print("[OK] Model and scaler loaded successfully.")
+
+    # Dynamically load optimal threshold from reports/metrics.json if available
+    metrics_path = config.REPORTS_DIR / "metrics.json"
+    if metrics_path.exists():
+        try:
+            with open(metrics_path, "r") as f:
+                metrics_data = json.load(f)
+            for entry in metrics_data:
+                if entry.get("tag") == "cost_analysis" and "optimal_threshold" in entry:
+                    optimal_threshold = float(entry["optimal_threshold"])
+                    print(f"[OK] Dynamically loaded optimal threshold from metrics: {optimal_threshold}")
+                    break
+        except Exception as e:
+            print(f"[Warning] Failed to dynamically load optimal threshold: {e}. Using default: {optimal_threshold}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load resources on startup and yield."""
+    load_resources()
+    yield
+
+
+app = FastAPI(
+    title="Credit Card Fraud Detection API",
+    description="Real-time model inference endpoint for detecting fraudulent credit card transactions.",
+    version="1.0",
+    lifespan=lifespan,
+)
 
 
 class TransactionInput(BaseModel):

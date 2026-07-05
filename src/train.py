@@ -88,11 +88,9 @@ def build_xgboost(y_train: pd.Series = None, use_class_weight: bool = True) -> X
         colsample_bytree=0.8,
         scale_pos_weight=scale_pos_weight,
         eval_metric="logloss",
-        use_label_encoder=False,
         random_state=config.RANDOM_STATE,
         n_jobs=-1,
         verbosity=0,
-        silent=True,
     )
 
 
