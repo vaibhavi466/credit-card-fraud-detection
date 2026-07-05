@@ -64,13 +64,13 @@ print("Credit Card Fraud Detection Pipeline")
 print("=" * 70)
 
 # ── Phase 0: Verify environment ───────────────────────────────────────────────
-print("\n[Phase 0] Verifying environment …")
+print("\n[Phase 0] Verifying environment ...")
 config.MODELS_DIR.mkdir(exist_ok=True)
 config.FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 config.DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Phase 1: Load + EDA summary ───────────────────────────────────────────────
-print("\n[Phase 1] Loading and validating dataset …")
+print("\n[Phase 1] Loading and validating dataset ...")
 from src.data_loader import load_raw_data, get_features_and_target
 import pandas as pd
 import numpy as np
@@ -99,7 +99,7 @@ if max_phase < 2:
     sys.exit(0)
 
 # ── Phase 2: Preprocessing + Baseline ─────────────────────────────────────────
-print("\n[Phase 2] Preprocessing + Logistic Regression baseline …")
+print("\n[Phase 2] Preprocessing + Logistic Regression baseline ...")
 from src.preprocessing import preprocess
 from src.train import build_logistic_regression, train_model, save_model
 from src.evaluate import evaluate_model, log_metrics_json
@@ -121,7 +121,7 @@ if max_phase < 3:
     sys.exit(0)
 
 # ── Phase 3: Imbalance strategies × model families ────────────────────────────
-print("\n[Phase 3] Training all strategy × model combinations …")
+print("\n[Phase 3] Training all strategy x model combinations ...")
 from src.resampling import RESAMPLING_STRATEGIES
 from src.train import build_random_forest, build_xgboost
 
@@ -135,7 +135,7 @@ all_metrics = []
 NEEDS_CLASS_WEIGHT = {"class_weight", "undersample"}
 
 for strategy_name, resample_fn in RESAMPLING_STRATEGIES.items():
-    print(f"\n  ── Strategy: {strategy_name} ──")
+    print(f"\n  === Strategy: {strategy_name} ===")
     X_res, y_res = resample_fn(X_train, y_train)
     use_cw = strategy_name in NEEDS_CLASS_WEIGHT
 
@@ -157,7 +157,7 @@ for strategy_name, resample_fn in RESAMPLING_STRATEGIES.items():
             best_model = model
             best_model_name = tag
             save_model(model, "best_model")
-            print(f"  ★ New best model: {tag} (AUPRC={best_auprc:.4f})")
+            print(f"  [BEST] New best model: {tag} (AUPRC={best_auprc:.4f})")
 
 print(f"\nBest model after Phase 3: {best_model_name} (AUPRC={best_auprc:.4f})")
 
@@ -165,7 +165,7 @@ if max_phase < 4:
     sys.exit(0)
 
 # ── Phase 4: Evaluation deep dive ─────────────────────────────────────────────
-print(f"\n[Phase 4] Evaluation deep dive for {best_model_name} …")
+print(f"\n[Phase 4] Evaluation deep dive for {best_model_name} ...")
 from src.evaluate import (
     plot_confusion_matrix, plot_pr_curve, plot_roc_curve, plot_threshold_sweep
 )
@@ -179,7 +179,7 @@ if max_phase < 5:
     sys.exit(0)
 
 # ── Phase 5: Cost analysis ────────────────────────────────────────────────────
-print("\n[Phase 5] Cost-sensitive threshold selection …")
+print("\n[Phase 5] Cost-sensitive threshold selection ...")
 from src.cost_analysis import run_cost_analysis
 
 cost_results = run_cost_analysis(best_model, X_test, y_test, df)
@@ -220,7 +220,7 @@ if max_phase < 6:
     sys.exit(0)
 
 # ── Phase 6: SHAP explainability ─────────────────────────────────────────────
-print("\n[Phase 6] SHAP explainability …")
+print("\n[Phase 6] SHAP explainability ...")
 from src.explain import run_explainability
 
 shap_results = run_explainability(best_model, X_train, X_test, y_test)
@@ -234,7 +234,7 @@ if max_phase < 7 or skip_autoencoder:
     sys.exit(0)
 
 # ── Phase 7: Autoencoder (stretch) ────────────────────────────────────────────
-print("\n[Phase 7] Autoencoder (unsupervised) …")
+print("\n[Phase 7] Autoencoder (unsupervised) ...")
 from src.autoencoder import run_autoencoder_pipeline
 
 ae_metrics, ae, ae_threshold = run_autoencoder_pipeline(X_train, X_test, y_train, y_test)

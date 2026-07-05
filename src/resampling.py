@@ -104,6 +104,13 @@ def smote_tomek(
     """
     smt = SMOTETomek(tomek=TomekLinks(n_jobs=-1), random_state=config.RANDOM_STATE)
     X_res, y_res = smt.fit_resample(X_train, y_train)
+    
+    # Calculate exactly how many Tomek links were removed
+    majority_count = int((y_train == config.LEGIT_LABEL).sum())
+    expected_smote_size = 2 * majority_count
+    tomek_removed = expected_smote_size - len(y_res)
+    print(f"  [Tomek Cleaning] Removed {tomek_removed:,} borderline Tomek links from the oversampled set.")
+    
     _log_resample("SMOTETomek", y_train, y_res)
     return pd.DataFrame(X_res, columns=X_train.columns), pd.Series(y_res)
 
