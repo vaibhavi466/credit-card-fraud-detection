@@ -7,13 +7,11 @@ We test this by verifying that the resampled output contains no test indices.
 
 import numpy as np
 import pandas as pd
-import pytest
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.resampling import class_weight_only, random_undersample, smote, smote_tomek
-import config
 
 
 def make_imbalanced_data(n_legit=500, n_fraud=10, seed=42):

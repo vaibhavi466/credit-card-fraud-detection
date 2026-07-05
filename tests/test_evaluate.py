@@ -7,7 +7,6 @@ evaluation functions produce correct numbers before we run them on the real data
 
 import numpy as np
 import pandas as pd
-import pytest
 import sys
 from pathlib import Path
 

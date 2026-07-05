@@ -30,9 +30,8 @@ import joblib
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import config
 from src.data_loader import load_raw_data, get_features_and_target
-from src.preprocessing import preprocess, scale_features
-from src.evaluate import evaluate_model, evaluate_all_thresholds
-from src.cost_analysis import compute_cost_curve
+from src.preprocessing import preprocess
+from src.evaluate import evaluate_all_thresholds
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -219,7 +218,6 @@ with col2:
         explanation = explainer(sample, check_additivity=False)
 
         if explanation.values.ndim == 3:
-            import shap as shap_module
             exp_slice = shap.Explanation(
                 values=explanation.values[0, :, 1],
                 base_values=explanation.base_values[0, 1],

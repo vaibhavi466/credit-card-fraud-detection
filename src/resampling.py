@@ -20,7 +20,6 @@ Strategies implemented:
 4.  smote_tomek         — SMOTE + Tomek link cleaning (removes borderline pairs)
 """
 
-import numpy as np
 import pandas as pd
 from imblearn.over_sampling import SMOTE
 from imblearn.combine import SMOTETomek

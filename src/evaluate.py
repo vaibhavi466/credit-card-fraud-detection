@@ -19,7 +19,6 @@ while catching zero frauds. Accuracy is an actively misleading metric here.
 """
 
 import json
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns

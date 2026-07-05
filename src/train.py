@@ -12,7 +12,6 @@ Design decisions:
   on the held-out test set (not the CV folds) to avoid optimistic bias.
 """
 
-import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier

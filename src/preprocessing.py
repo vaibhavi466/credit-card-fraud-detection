@@ -21,7 +21,6 @@ Columns scaled: only Amount and Time (V1–V28 are already PCA-standardised
 by the dataset authors, so re-scaling them changes nothing useful).
 """
 
-import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler

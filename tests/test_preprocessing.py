@@ -7,12 +7,11 @@ ONLY on training data. This is the no-leakage guarantee.
 
 import numpy as np
 import pandas as pd
-import pytest
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from src.preprocessing import stratified_split, scale_features, preprocess
+from src.preprocessing import stratified_split, scale_features
 import config
 
 

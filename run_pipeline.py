@@ -17,10 +17,8 @@ Requirements:
 """
 
 import argparse
-import json
 import sys
 import time
-from pathlib import Path
 
 import config
 
@@ -72,8 +70,6 @@ config.DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 # ── Phase 1: Load + EDA summary ───────────────────────────────────────────────
 print("\n[Phase 1] Loading and validating dataset ...")
 from src.data_loader import load_raw_data, get_features_and_target
-import pandas as pd
-import numpy as np
 
 df = load_raw_data()
 X, y = get_features_and_target(df)
