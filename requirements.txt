@@ -30,3 +30,8 @@ nbformat==5.10.4
 
 # Dataset download
 kaggle==2.2.3
+
+# Real-time serving API
+fastapi==0.139.0
+pydantic==2.13.4
+uvicorn==0.50.0
