@@ -2,7 +2,7 @@
 src/autoencoder.py — Unsupervised fraud detection via reconstruction error.
 
 Why an autoencoder for fraud detection?
-The supervised approach (Phases 2–6) requires labeled fraud examples.
+The supervised approach requires labeled fraud examples.
 In many real-world scenarios:
   - You have abundant legitimate transaction data but few or no labeled frauds
   - The fraud patterns change over time (concept drift), making old labels stale
@@ -49,7 +49,7 @@ def build_autoencoder() -> MLPRegressor:
     input(29) → 32 → 16 → 8 → 16 → 32 → output(29)
 
     We use tanh activation (bounded output, good for PCA-scaled features) and
-    adam optimizer. max_iter=200 is sufficient for convergence on this dataset.
+    adam optimizer. max_iter=20 (from config) is sufficient for convergence.
     """
     return MLPRegressor(
         hidden_layer_sizes=config.AUTOENCODER_HIDDEN_LAYER_SIZES,
@@ -74,7 +74,6 @@ def train_autoencoder(X_train: pd.DataFrame, y_train: pd.Series) -> MLPRegressor
     print(f"Training autoencoder on {len(X_legit):,} legitimate transactions …")
 
     ae = build_autoencoder()
-    # Target = input (reconstruction objective)
     ae.fit(X_legit, X_legit)
     print(f"Autoencoder trained. Loss: {ae.loss_:.6f}")
     return ae
@@ -88,7 +87,6 @@ def reconstruction_error(ae: MLPRegressor, X: pd.DataFrame) -> np.ndarray:
     High MSE → the autoencoder struggled to reconstruct this sample → likely anomalous.
     """
     X_reconstructed = ae.predict(X)
-    # Mean over features for each row
     mse = np.mean((X.values - X_reconstructed) ** 2, axis=1)
     return mse
 
@@ -104,19 +102,12 @@ def find_threshold_from_validation(
 
     Logic: if we set the threshold at the 95th percentile of legitimate transaction
     errors, then only the top 5% most "unusual" legitimate transactions will be
-    flagged. Fraud transactions, having higher error on average, will be caught
-    more readily. The percentile is a tunable hyperparameter.
-
-    Parameters
-    ----------
-    percentile : float, default 95
-        Percentile of legitimate-transaction errors to use as the threshold.
-        Higher → fewer false alarms, lower recall; Lower → more alarms, higher recall.
+    flagged.
     """
     legit_mask = y_val == config.LEGIT_LABEL
     legit_errors = reconstruction_error(ae, X_val[legit_mask])
     threshold = float(np.percentile(legit_errors, percentile))
-    print(f"Autoencoder threshold (p{percentile} of legit errors): {threshold:.6f}")
+    print(f"Autoencoder threshold (p{percentile} of val legit errors): {threshold:.6f}")
     return threshold
 
 
@@ -128,19 +119,18 @@ def evaluate_autoencoder(
 ) -> dict:
     """Evaluate the autoencoder as a binary classifier using reconstruction error."""
     errors = reconstruction_error(ae, X_test)
-
-    # Use error as the anomaly score (higher = more likely fraud)
     y_pred = (errors >= threshold).astype(int)
 
     precision = precision_score(y_test, y_pred, zero_division=0)
     recall = recall_score(y_test, y_pred, zero_division=0)
     f1 = f1_score(y_test, y_pred, zero_division=0)
-    # AUPRC and ROC-AUC using raw errors as scores
     auprc = average_precision_score(y_test, errors)
     roc_auc = roc_auc_score(y_test, errors)
 
     metrics = {
         "model_name": "Autoencoder (unsupervised)",
+        "split": "test",
+        "purpose": "final_evaluation",
         "threshold": round(threshold, 6),
         "precision": round(precision, 4),
         "recall": round(recall, 4),
@@ -149,7 +139,7 @@ def evaluate_autoencoder(
         "roc_auc": round(roc_auc, 4),
     }
     print(
-        f"[Autoencoder] P={precision:.4f} R={recall:.4f} F1={f1:.4f} "
+        f"[Autoencoder | test] P={precision:.4f} R={recall:.4f} F1={f1:.4f} "
         f"AUPRC={auprc:.4f} ROC-AUC={roc_auc:.4f}"
     )
     return metrics
@@ -160,36 +150,26 @@ def run_autoencoder_pipeline(
     X_test: pd.DataFrame,
     y_train: pd.Series,
     y_test: pd.Series,
-) -> dict:
+    X_val: pd.DataFrame = None,
+    y_val: pd.Series = None,
+) -> tuple[dict, MLPRegressor, float]:
     """
-    Full autoencoder pipeline: train → threshold → evaluate.
-
-    When is unsupervised better?
-    1. Cold-start: no labeled fraud data available (new product, new market).
-    2. Concept drift: fraud patterns change and old labels become misleading.
-    3. Zero-day fraud: entirely new fraud types that supervised models never
-       saw in training — autoencoder catches anything that deviates from normal.
-    4. Reduced labeling cost: no need for expensive manual fraud labeling.
-
-    The trade-off: supervised models with good labels almost always outperform
-    autoencoders on known fraud patterns. The autoencoder is a complement, not
-    a replacement — often used in a two-stage system or as an alert layer before
-    a human reviews edge cases.
+    Full autoencoder pipeline: train on X_train -> threshold on X_val -> evaluate on X_test.
     """
     ae = train_autoencoder(X_train, y_train)
 
-    # Save the model
     config.MODELS_DIR.mkdir(exist_ok=True)
     joblib.dump(ae, config.MODELS_DIR / "autoencoder.joblib")
 
-    # Use a 20% validation split from training data to set the threshold
-    from sklearn.model_selection import train_test_split
-    X_tr, X_val, y_tr, y_val = train_test_split(
-        X_train, y_train,
-        test_size=0.2,
-        stratify=y_train,
-        random_state=config.RANDOM_STATE,
-    )
+    if X_val is None or y_val is None:
+        # Fallback to internal split if X_val not passed
+        from sklearn.model_selection import train_test_split
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X_train, y_train,
+            test_size=0.2,
+            stratify=y_train,
+            random_state=config.RANDOM_STATE,
+        )
 
     threshold = find_threshold_from_validation(ae, X_val, y_val, percentile=95)
     metrics = evaluate_autoencoder(ae, X_test, y_test, threshold)

@@ -4,17 +4,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Dataset: ULB Kaggle](https://img.shields.io/badge/dataset-ULB%20Kaggle-orange)](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
 
-End-to-end ML pipeline for detecting credit card fraud on the ULB dataset — 284,807 transactions, 492 fraud (0.172%). Built as a portfolio project targeting Data Scientist / ML Engineer roles at fintech companies.
+End-to-end Machine Learning pipeline for detecting credit card fraud on the ULB dataset — 284,807 transactions, 492 fraud (0.172%). Built as a portfolio project targeting Data Scientist / ML Engineer roles at fintech companies.
 
-> **Every metric in this README was copied from an actual run of `run_pipeline.py` — nothing is estimated or fabricated.**
+> **Every metric in this README was generated from an actual execution of `run_pipeline.py` — nothing is estimated, hardcoded, or fabricated.**
 
 ---
 
 ## Problem Statement
 
-Credit card fraud costs the global economy billions annually. The challenge is heavily imbalanced data: roughly 1 in 580 transactions is fraudulent. A naive model that predicts "legit" for every transaction achieves **99.83% accuracy while catching zero frauds** — this is the central motivation for every design decision in this project.
+Credit card fraud costs the global financial system billions annually. The central technical challenge is severe class imbalance: roughly 1 in 580 transactions is fraudulent (0.172%). A naive classifier predicting "legitimate" for every transaction achieves **99.83% accuracy while missing 100% of fraud cases** — rendering standard accuracy useless.
 
-**Primary metric: AUPRC** (Area Under the Precision-Recall Curve). AUPRC is directly sensitive to minority-class performance and has a random-classifier baseline equal to the fraud prevalence (~0.17%), making every improvement meaningful. ROC-AUC can look deceptively good (≥0.95) even when recall on the fraud class is poor.
+**Primary evaluation metric: AUPRC** (Area Under the Precision-Recall Curve). AUPRC is directly sensitive to minority-class performance and has a random-classifier baseline equal to the fraud prevalence (~0.172%), making every improvement mathematically defensible. ROC-AUC can look deceptively high (≥0.95) even when minority recall is poor due to the large pool of true negatives.
 
 ---
 
@@ -24,51 +24,89 @@ Credit card fraud costs the global economy billions annually. The challenge is h
 |---|---|
 | Source | [Kaggle: mlg-ulb/creditcardfraud](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud) |
 | Transactions | 284,807 |
-| Fraud cases | 492 (0.172%) |
-| Features | V1–V28 (PCA-anonymised), Amount, Time |
+| Fraud cases | 492 (0.1727%) |
+| Legitimate cases | 284,315 (99.8273%) |
+| Features | V1–V28 (PCA-transformed/anonymised), Amount, Time |
 | Period | September 2013, European cardholders |
 
-**Note on features:** V1–V28 are principal components — the original features are confidential. This limits individual feature interpretation (they can't be mapped to "transaction amount > $X"), but SHAP still gives meaningful local explanations in the PCA space.
+**Feature note:** V1–V28 are PCA-transformed/anonymised features. This project scales the raw `Amount` and `Time` features using training statistics while preserving the provided PCA components.
 
 ---
 
-## Repo Structure
+## Pipeline Architecture
+
+```mermaid
+flowchart TD
+    RawData["Raw Dataset (284,807 rows)"] --> StratSplit["3-Way Stratified Split<br/>(60% Train / 20% Val / 20% Test)"]
+    StratSplit --> XTrain["X_train (170,883 rows, 295 fraud)"]
+    StratSplit --> XVal["X_val (56,962 rows, 99 fraud)"]
+    StratSplit --> XTest["X_test (56,962 rows, 98 fraud — Untouched)"]
+    
+    XTrain --> Scaler["StandardScaler.fit(X_train)"]
+    Scaler --> ScaleVal["Transform X_val"]
+    Scaler --> ScaleTest["Transform X_test"]
+    
+    XTrain --> Resampling["Train-Only Imbalance Handling<br/>(Class Weight / Undersampling / SMOTE / SMOTE+Tomek)"]
+    Resampling --> Candidates["Train Candidate Models<br/>(Logistic Regression, Random Forest, XGBoost)"]
+    
+    Candidates --> ValEval["Validation Evaluation (AUPRC)"]
+    ScaleVal --> ValEval
+    ValEval --> Winner["Validation Winner Selection<br/>Selected: class_weight_XGB (Val AUPRC = 0.8153)"]
+    
+    XTrain --> FNCost["Calculate Train Mean Fraud Amount<br/>(FN Cost = $130.15)"]
+    ScaleVal --> CostOpt["Validation Cost Curve Optimization"]
+    FNCost --> CostOpt
+    Winner --> CostOpt
+    CostOpt --> LockedThresh["Lock Operating Threshold = 0.0600"]
+    
+    Winner --> FinalTest["Final Untouched Test Set Evaluation"]
+    ScaleTest --> FinalTest
+    LockedThresh --> FinalTest
+    
+    FinalTest --> Artifacts["Generated Reports & Persisted Assets<br/>(metrics.json, figures/, models/)"]
+    Artifacts --> Serving["FastAPI Inference (/predict) & Streamlit App"]
+```
+
+---
+
+## Repository Structure
 
 ```
 credit-card-fraud-detection/
 ├── README.md
-├── LICENSE                     MIT
+├── LICENSE                     MIT License
 ├── requirements.txt            Package dependencies (pinned exact versions)
-├── config.py                   Paths, seeds, and constants config
-├── run_pipeline.py             ← single entrypoint, reproduces the whole pipeline
+├── config.py                   Paths, seeds, and system constants
+├── run_pipeline.py             ← Entrypoint reproducing the full pipeline end-to-end
 ├── data/
-│   ├── raw/                    gitignored — creditcard.csv lives here
+│   ├── raw/                    creditcard.csv (gitignored)
 │   └── processed/              Processed data partitions (gitignored)
 ├── src/
-│   ├── data_loader.py          Load + validate raw dataset
-│   ├── eda.py                  Exploratory Data Analysis & visualisations
-│   ├── preprocessing.py        Stratified splitting & scaling with leakage guard
-│   ├── resampling.py           4 class-imbalance strategies (SMOTE, Tomek, etc.)
-│   ├── train.py                Model building + XGBoost/RF grid search
-│   ├── evaluate.py             Evaluation metrics & PR/ROC curves
-│   ├── cost_analysis.py        Cost-sensitive decision threshold sweeps
-│   ├── explain.py              SHAP summary & local explanation waterfall
-│   └── autoencoder.py          Unsupervised neural network autoencoder
+│   ├── data_loader.py          Dataset loading and schema verification
+│   ├── eda.py                  Exploratory Data Analysis and figures
+│   ├── preprocessing.py        3-way stratified split and train-fitted StandardScaler
+│   ├── resampling.py           Train-only resampling (Class Weight, Undersampling, SMOTE, SMOTE+Tomek)
+│   ├── train.py                Model training and imblearn cross-validation tuning
+│   ├── evaluate.py             Metric generation and curve plotting
+│   ├── cost_analysis.py        Train-derived FN cost calculation and validation threshold optimization
+│   ├── explain.py              SHAP summary, beeswarm, and waterfall explainability
+│   └── autoencoder.py          Unsupervised neural network autoencoder (MLPRegressor)
 ├── app/
-│   ├── streamlit_app.py        Interactive user/analyst demo app
-│   └── api.py                  FastAPI endpoint for real-time model serving
+│   ├── streamlit_app.py        Interactive analytical dashboard
+│   └── api.py                  FastAPI REST endpoint (/health, /predict)
 ├── tests/
-│   ├── test_preprocessing.py   Data scaling & leakage guard unit tests
-│   ├── test_resampling.py      Oversampling/undersampling unit tests
+│   ├── test_preprocessing.py   3-way split, non-overlap, and scaling leakage guard tests
+│   ├── test_resampling.py      Resampling shape and fold isolation tests
 │   ├── test_evaluate.py        Custom evaluation metric correctness tests
-│   └── test_api.py             FastAPI endpoint & mock client unit tests
-├── models/                     gitignored — serialized .joblib files
+│   ├── test_api.py             FastAPI request validation and threshold tests
+│   └── test_pipeline_correctness.py Pipeline orchestration and methodology tests
+├── models/                     gitignored — serialized model, scaler, and metadata (.joblib)
 ├── reports/
-│   ├── figures/                All analytical plots & app screenshot
-│   ├── metrics.json            Metrics database for all runs
+│   ├── figures/                Analytical visualizations
+│   ├── metrics.json            Structured metrics store for all runs
 │   └── model_card.md           Formal scikit-learn style model card
 └── docs/
-    └── learning_notes.md       Developer design notes & interview prep guide
+    └── learning_notes.md       Technical reference and interview defensibility guide
 ```
 
 ---
@@ -76,31 +114,31 @@ credit-card-fraud-detection/
 ## Quick Start
 
 ```bash
-# 1. Clone and enter the repo
+# 1. Clone the repository
 git clone https://github.com/vaibhavi466/credit-card-fraud-detection.git
 cd credit-card-fraud-detection
 
-# 2. Create virtual environment
+# 2. Create and activate virtual environment
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # macOS/Linux
 
-# 3. Install dependencies
+# 3. Install pinned dependencies
 pip install -r requirements.txt
 
-# 4. Download dataset (requires Kaggle API token)
-#    Get kaggle.json from kaggle.com → Account → Create New API Token
-#    Place at C:\Users\<you>\.kaggle\kaggle.json  (Windows)
-#    or ~/.kaggle/kaggle.json (macOS/Linux)
+# 4. Download dataset (requires Kaggle API key)
 kaggle datasets download -d mlg-ulb/creditcardfraud -p data/raw --unzip
 
-# 5. Run the full pipeline
+# 5. Run the complete pipeline end-to-end
 python run_pipeline.py
 
-# 6. Launch the interactive demo
+# 6. Launch the FastAPI server
+uvicorn app.api:app --reload
+
+# 7. Launch the Streamlit application
 streamlit run app/streamlit_app.py
 
-# 7. Run tests
+# 8. Run unit test suite
 pytest -q tests/
 ```
 
@@ -108,120 +146,85 @@ pytest -q tests/
 
 ## Results
 
-### Model Comparison (all strategy × model combinations)
+### 1. Validation Candidate Selection (60% Train / 20% Validation)
 
-| Strategy | Model | Precision | Recall | F1 | AUPRC | ROC-AUC |
-|---|---|---|---|---|---|---|
-| class_weight | LR | 0.0610 | 0.9184 | 0.1144 | 0.7159 | 0.9722 |
-| class_weight | RF | 0.8966 | 0.7959 | 0.8432 | 0.8629 | 0.9573 |
-| class_weight | XGB | 0.9048 | 0.7755 | 0.8352 | 0.8644 | 0.9811 |
-| undersample | LR | 0.0384 | 0.9184 | 0.0738 | 0.6778 | 0.9759 |
-| undersample | RF | 0.0408 | 0.9082 | 0.0781 | 0.7020 | 0.9780 |
-| undersample | XGB | 0.0380 | 0.9184 | 0.0730 | 0.6653 | 0.9778 |
-| SMOTE | LR | 0.0580 | 0.9184 | 0.1092 | 0.7249 | 0.9699 |
-| **SMOTE** | **Random Forest** | **0.8454** | **0.8367** | **0.8410** | **0.8747** | **0.9731** |
-| SMOTE | XGBoost | 0.3723 | 0.8776 | 0.5228 | 0.8479 | 0.9756 |
-| SMOTE+Tomek | LR | 0.0580 | 0.9184 | 0.1092 | 0.7249 | 0.9699 |
-| **SMOTE+Tomek** | **Random Forest** | **0.8454** | **0.8367** | **0.8410** | **0.8747** | **0.9731** |
-| SMOTE+Tomek | XGBoost | 0.3723 | 0.8776 | 0.5228 | 0.8479 | 0.9756 |
-| Autoencoder | Unsupervised | 0.0278 | 0.8776 | 0.0539 | 0.4788 | 0.9589 |
+Candidate models were trained on `X_train` (with resampling applied strictly to `X_train`) and evaluated on `X_val` at default threshold 0.50 to select the winning strategy and model family based on **Validation AUPRC**:
 
-*Primary metric: AUPRC. Bold row = best model.*
+| Strategy | Model | Precision | Recall | F1 | Val AUPRC | ROC-AUC | Status |
+|---|---|---|---|---|---|---|---|
+| class_weight | Logistic Regression | 0.0591 | 0.8990 | 0.1108 | 0.6831 | 0.9747 | Evaluated |
+| class_weight | Random Forest | 0.8889 | 0.7273 | 0.8000 | 0.7985 | 0.9466 | Evaluated |
+| **class_weight** | **XGBoost** | **0.9351** | **0.7273** | **0.8182** | **0.8153** | **0.9737** | **Selected Winner** |
+| undersample | Logistic Regression | 0.0363 | 0.8990 | 0.0698 | 0.4864 | 0.9720 | Evaluated |
+| undersample | Random Forest | 0.0508 | 0.8687 | 0.0959 | 0.6989 | 0.9739 | Evaluated |
+| undersample | XGBoost | 0.0438 | 0.8889 | 0.0834 | 0.6118 | 0.9746 | Evaluated |
+| SMOTE | Logistic Regression | 0.0568 | 0.8788 | 0.1067 | 0.6737 | 0.9716 | Evaluated |
+| SMOTE | Random Forest | 0.8736 | 0.7677 | 0.8172 | 0.8019 | 0.9717 | Evaluated |
+| SMOTE | XGBoost | 0.4483 | 0.7879 | 0.5714 | 0.7821 | 0.9727 | Evaluated |
+| SMOTE+Tomek | Logistic Regression | 0.0568 | 0.8788 | 0.1067 | 0.6737 | 0.9716 | Evaluated |
+| SMOTE+Tomek | Random Forest | 0.8736 | 0.7677 | 0.8172 | 0.8019 | 0.9717 | Evaluated |
+| SMOTE+Tomek | XGBoost | 0.4483 | 0.7879 | 0.5714 | 0.7821 | 0.9727 | Evaluated |
 
-### Cost-Optimal Operating Point
+*Primary selection metric: Validation AUPRC. Bold row indicates candidate selected for locked evaluation.*
 
-| Parameter | Value |
-|---|---|
-| Best model | SMOTE + Random Forest |
-| Default threshold (0.5) AUPRC | 0.8747 |
-| Cost-optimal threshold | 0.3200 |
-| FN cost (mean fraud amount) | $122.21 |
-| FP cost (illustrative) | $5.00 |
-| Total cost at optimal threshold | $1,362.11 |
+### 2. Validation-Selected Operating Threshold & Cost Analysis
+
+Threshold optimization was performed strictly on validation predictions using train-derived cost parameters:
+
+| Parameter | Value | Derivation |
+|---|---|---|
+| Train Mean Fraud Amount (FN Cost) | $130.15 | Mean `Amount` of fraud cases in `X_train` |
+| Illustrative Friction Cost (FP Cost) | $5.00 | Documented friction assumption |
+| Validation Optimal Threshold | **0.0600** | Minimizes total cost on `X_val` |
+| Validation Total Cost | $2,677.91 | 20 FN + 15 FP |
+
+### 3. Final Evaluation on Untouched Test Set (20% Test, 56,962 samples, 98 fraud)
+
+The winning candidate (`class_weight_XGB`) and locked threshold (0.0600) were evaluated exactly once on the final untouched test set:
+
+| Evaluation Setting | Operating Threshold | Precision | Recall | F1 | Test AUPRC | Test ROC-AUC | TP | FP | TN | FN |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Standard Reference | 0.5000 | 0.9398 | 0.7959 | 0.8619 | 0.8771 | 0.9764 | 78 | 5 | 56,859 | 20 |
+| **Validation-Locked** | **0.0600** | **0.8019** | **0.8673** | **0.8333** | **0.8771** | **0.9764** | **85** | **21** | **56,843** | **13** |
+
+*Unsupervised Autoencoder baseline on test set:* Test AUPRC = 0.4338, Recall = 0.8673, Precision = 0.0281.
 
 ---
 
-## Key Design Decisions
+## Methodological Rigor & Technical Defensibility
 
-### 1. AUPRC as primary metric — not accuracy, not ROC-AUC
+1. **Strict 3-Way Stratified Partitioning:** The dataset is split into 60% Train, 20% Validation, and 20% Final Test. The final test set is locked until after model selection and threshold tuning.
+2. **Scaler Fit Isolation:** `StandardScaler` is fitted **exclusively** on `X_train` (`Amount` and `Time`). Validation and test features are transformed using training means (`Amount`: $87.63, `Time`: 94,864.79s) and standard deviations (`Amount`: $243.80, `Time`: 47,459.08s).
+3. **Resampling Fold Isolation:** Oversampling (SMOTE) and undersampling operate strictly on training data. For hyperparameter search (`--tune`), `imblearn.pipeline.Pipeline` executes resampling independently within each cross-validation fold to prevent data leakage.
+4. **Validation-Only Cost Tuning:** False-Negative costs ($130.15) are calculated strictly from training row indices. The operating threshold (0.0600) is selected via validation cost minimization and locked prior to test set evaluation.
+5. **Autoencoder Validation Isolation:** The unsupervised autoencoder (`MLPRegressor`) is trained strictly on legitimate `X_train` transactions. Its reconstruction error decision threshold (0.5168) is set at the 95th percentile of `X_val` legitimate errors before final test scoring.
 
-With 0.172% fraud prevalence, a model that predicts "legit" for every transaction gets 99.83% accuracy while catching **zero frauds**. Accuracy is actively misleading.
+---
 
-ROC-AUC can also look deceptively good (often >0.95) under heavy imbalance because the large pool of true negatives keeps the False Positive Rate low regardless of how well the model handles the minority class. AUPRC is sensitive to minority-class performance by construction — a random classifier scores AUPRC ≈ 0.0017 (the fraud prevalence), not 0.5.
+## Model Serving & Applications
 
-### 2. No data leakage — resampling strictly on the training fold
+### 1. FastAPI REST API (`app/api.py`)
+Provides production-compatible inference endpoints loading the persisted scaler, winning model, and locked threshold:
+- `GET /health`: Returns service health status and model metadata.
+- `POST /predict`: Accepts a transaction feature vector and optional custom threshold, returning `fraud_prediction`, `fraud_score`, `operating_threshold`, and `risk_level`.
 
-Every resampling operation (SMOTE, undersampling) is applied **after** the stratified train/test split and **only** on `X_train, y_train`. The functions in `src/resampling.py` are API-designed to only accept training data — they can't receive test data by signature.
-
-The `StandardScaler` in `src/preprocessing.py` is fitted on `X_train` only, then `.transform()` (not `.fit_transform()`) is applied to `X_test`. This is enforced in code and verified by `tests/test_preprocessing.py`.
-
-**Why this matters:** If you SMOTE-oversample the full dataset before splitting, synthetic minority samples will appear in both training and test. The model effectively memorises patterns it "generated" itself, leading to inflated recall figures. The fix is trivial but the bug is extremely common.
-
-### 3. SMOTE over simple oversampling or duplication
-
-SMOTE interpolates new synthetic fraud samples between a real fraud transaction and its k-nearest minority neighbours. This creates plausible but novel samples, reducing overfitting compared to simple duplication. The trade-off: synthetic samples can land in ambiguous decision-boundary regions. SMOTE+Tomek adds a cleaning step that removes borderline pairs.
-
-### 4. Cost-based threshold over default 0.5
-
-Defaulting to threshold=0.5 is arbitrary. In fraud detection, the costs of errors are asymmetric:
-- **False Negative** (missed fraud): costs the bank the full fraud amount ($122.21 mean amount on this dataset)
-- **False Positive** (flagged legit): costs customer friction (~$5 illustrative assumption)
-
-We sweep thresholds from 0.01 to 0.99, compute total expected cost at each, and choose the threshold that minimises it. The cost-optimal threshold is documented in `reports/metrics.json`.
-
-### 5. XGBoost as primary model
-
-XGBoost consistently outperforms Logistic Regression on tabular data with non-linear feature interactions. The PCA-transformed features (V1–V28) may capture non-linear fraud patterns that LR's linear decision boundary cannot separate. Random Forest is a good middle ground. All three are included in the comparison table.
+### 2. Streamlit Analytical Dashboard (`app/streamlit_app.py`)
+Interactive application for fraud analysts featuring:
+- **Transaction Inspection:** Select real test transactions or create custom vectors.
+- **Dynamic Threshold Control:** Adjust operating thresholds while monitoring risk scores.
+- **SHAP Explanation:** Real-time visual explanation of feature contributions.
 
 ---
 
 ## Limitations
 
-1. **PCA features aren't individually interpretable.** V1–V28 are linear combinations of redacted original features. SHAP tells us "V14 is important," but we can't map that to a human-readable transaction attribute (e.g., "merchant category"). This is an intrinsic limit of the dataset.
-
-2. **Static 2013 dataset — no concept drift handling.** Fraud patterns evolve as fraudsters adapt. A model trained on 2013 European card data may underperform on 2025 data. In production, you'd retrain on a rolling window, monitor for distribution shift (e.g., PSI on feature distributions), and potentially run the autoencoder as an alert layer for novel fraud types.
-
-3. **Illustrative cost model.** The $5 false-positive cost is an assumption, not a real business figure. A production cost model would incorporate: customer churn rate, call-centre cost per inquiry, card reissuance cost, regulatory fines for missed fraud, etc.
-
-4. **No temporal validation.** The dataset lacks a date column beyond `Time` (seconds since first transaction). A production system would validate on strictly future data (no look-ahead), not a random split. With time-series data, shuffled CV can leak future information into training folds.
-
----
-
-## Future Work
-
-- **Time-series validation:** Split by time rather than random stratification; use walk-forward CV
-- **Concept drift detection:** Monitor PSI / KL divergence on feature distributions; trigger retraining
-- **Real-time scoring API:** Wrap the model in a FastAPI endpoint with Pydantic input validation
-- **Feature engineering:** Velocity features (# transactions in last 1h/24h per card), merchant risk scores
-- **Calibration:** Apply Platt scaling or isotonic regression to get better-calibrated probabilities
-- **Fairness audit:** Analyse false positive rates across demographic groups (not possible with this anonymised dataset, but important in practice)
-
----
-
-## What I'd Do Differently (Self-Critique)
-
-If I were deploying this in a production banking environment, here is what I would change from this baseline codebase:
-
-1. **Abandon Random Shuffling**: I used a standard stratified random split here because the dataset's timestamps are relative and anonymized. In production, I would strictly use a **time-based temporal split** (e.g., training on weeks 1–3 and testing on week 4) or walk-forward validation. Shuffling transaction data can leak future behavior patterns into past predictions, artificially inflating model scores.
-2. **Calibrate the Probabilities**: Because we used SMOTE and undersampling to balance the training fold, the raw prediction probabilities are heavily distorted (inflated). A predicted probability of 80% in the app might correspond to a true real-world probability of 1% because the actual base rate of fraud is so tiny (0.17%). I would pass the predictions through **Platt scaling or Isotonic Regression** using a held-out calibration set before sending them to the cost-optimization module.
-3. **Use Simpler Anomaly Baselines**: The neural network Autoencoder is a great showcase project, but for production anomaly detection, I'd start with simpler, faster baselines like **Isolation Forest or ECOD**. They run significantly faster on CPU, have fewer hyperparameters to tune, and are easier to interpret.
-4. **Dynamic Friction Costs**: My cost model assumes a flat $5.00 customer friction cost for all false alarms. In a real system, the cost of declining a high-income client's card is much higher (due to churn risk and transaction value) than declining a low-activity account. I would model the False Positive cost dynamically based on client segment and transaction size.
-
----
-
-## Visualisations
-
-### SHAP Feature Importance
-![SHAP Summary](reports/figures/shap_summary.png)
-
-### Precision-Recall Curve
-![PR Curve](reports/figures/pr_curve.png)
-
-### Streamlit Demo
-![Streamlit App](reports/figures/streamlit_screenshot.png)
+1. **PCA Feature Redaction:** Features V1–V28 are anonymised principal components. Feature contributions (e.g. V4, V14, V12) represent mathematical components rather than raw merchant categories or customer IDs.
+2. **Synthetic Random Splitting vs. Temporal Validation:** The dataset uses relative timestamps (`Time` in seconds) without full calendar timestamps. A production system would employ strict time-based temporal splitting to handle macro trend shifts.
+3. **Illustrative Cost Model:** The $5 FP cost is an illustrative assumption. Production deployments should parameterize FP costs dynamically based on customer lifetime value and transaction amounts.
+4. **Uncalibrated Probability Scores:** Raw model outputs reflect non-linear ensemble confidence scores rather than calibrated true posterior probabilities.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Free to fork, adapt, and reference in your own portfolio.
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.

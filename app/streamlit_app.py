@@ -6,12 +6,10 @@ Launch with:
 
 Features:
 - Pick a transaction from the test set (or upload a CSV row)
-- See fraud probability gauge
+- See fraud probability score (model-estimated probability)
 - See SHAP waterfall explaining WHY the model scored it that way
 - Drag a threshold slider and see precision/recall update live
-
-This is what gets screen-shared in interviews — the goal is to make it easy
-to explain "here's what the model is doing and why" in real time.
+- Inspect validation candidate rankings vs final test evaluation
 """
 
 import sys
@@ -30,7 +28,7 @@ import joblib
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import config
 from src.data_loader import load_raw_data, get_features_and_target
-from src.preprocessing import preprocess
+from src.preprocessing import preprocess_train_val_test
 from src.evaluate import evaluate_all_thresholds
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -81,22 +79,40 @@ st.markdown("""
 # ── Load resources ────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_pipeline():
-    """Load model, scaler, and test data. Cached so it only runs once."""
+    """Load saved model, fitted scaler, and test split. Cached so it only runs once."""
     model_path = config.MODELS_DIR / "best_model.joblib"
     scaler_path = config.MODELS_DIR / "scaler.joblib"
 
-    if not model_path.exists():
-        return None, None, None, None, None
+    if not model_path.exists() or not scaler_path.exists():
+        return None, None, None, None, None, None
 
     model = joblib.load(model_path)
     scaler = joblib.load(scaler_path)
 
-    # Load raw data and reproduce the same test split
+    # Load raw data and reproduce exact 3-way split
     df = load_raw_data()
     X, y = get_features_and_target(df)
-    X_train, X_test, y_train, y_test, _ = preprocess(X, y)
-    # Apply the saved scaler (already fitted) — just for feature access
-    return model, scaler, X_test, y_test, df
+    X_train, X_val, X_test, y_train, y_val, y_test, _ = preprocess_train_val_test(X, y)
+
+    # Scale test set using the SAVED fitted scaler ONLY
+    cols_to_scale = config.COLS_TO_SCALE
+    X_test_scaled = X_test.copy()
+    X_test_scaled[cols_to_scale] = scaler.transform(X_test[cols_to_scale])
+
+    # Dynamic locked threshold if available
+    locked_threshold = config.DEFAULT_OPERATING_THRESHOLD
+    if config.METRICS_PATH.exists():
+        try:
+            with open(config.METRICS_PATH) as f:
+                metrics_data = json.load(f)
+            for entry in metrics_data:
+                if entry.get("tag") == "cost_analysis" and "optimal_threshold" in entry:
+                    locked_threshold = float(entry["optimal_threshold"])
+                    break
+        except Exception:
+            pass
+
+    return model, scaler, X_test_scaled, y_test, df, locked_threshold
 
 
 @st.cache_data
@@ -117,11 +133,11 @@ st.markdown('<div class="main-header">🔍 Credit Card Fraud Detector</div>', un
 st.markdown("**Portfolio demo** — ULB Credit Card Fraud dataset (284,807 transactions, 492 fraud)")
 st.markdown("---")
 
-model, scaler, X_test, y_test, df_raw = load_pipeline()
+model, scaler, X_test, y_test, df_raw, locked_threshold = load_pipeline()
 
 if model is None:
     st.error(
-        "⚠️  Model not found. Please run `python run_pipeline.py` first to train the model.",
+        "⚠️ Model not found. Please run `python run_pipeline.py` first to train the model.",
         icon="🚫",
     )
     st.code("python run_pipeline.py", language="bash")
@@ -131,13 +147,12 @@ if model is None:
 with st.sidebar:
     st.header("⚙️ Controls")
 
-    # Threshold slider
     st.subheader("Classification Threshold")
     threshold = st.slider(
         "Fraud probability threshold",
-        min_value=0.01, max_value=0.99, value=0.50, step=0.01,
+        min_value=0.01, max_value=0.99, value=float(locked_threshold), step=0.01,
         help=(
-            "Default is 0.5, but optimal depends on your cost model. "
+            f"Validation-locked cost-optimal threshold is {locked_threshold:.2f}. "
             "Lower → catch more fraud (higher recall), but more false alarms. "
             "Higher → fewer false alarms, but miss more fraud."
         ),
@@ -146,13 +161,13 @@ with st.sidebar:
     st.subheader("Sample Selection")
     sample_mode = st.radio(
         "Select transaction to inspect",
-        ["Random fraud (TP)", "Random legit (TN)", "Pick by index"],
+        ["Random actual fraud", "Random actual legit", "Pick by index"],
     )
 
     if sample_mode == "Pick by index":
         idx = st.number_input("Test set index", min_value=0,
                               max_value=len(X_test) - 1, value=0)
-    elif sample_mode == "Random fraud (TP)":
+    elif sample_mode == "Random actual fraud":
         fraud_indices = np.where(y_test.values == 1)[0]
         idx = int(np.random.choice(fraud_indices))
     else:
@@ -172,14 +187,22 @@ with col1:
 
     sample = X_test.iloc[[idx]]
     true_label = int(y_test.iloc[idx])
-    fraud_prob = float(model.predict_proba(sample)[0, 1])
+    
+    # Feature order alignment
+    feature_order = [
+        "Time", "V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10",
+        "V11", "V12", "V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20",
+        "V21", "V22", "V23", "V24", "V25", "V26", "V27", "V28", "Amount"
+    ]
+    sample_aligned = sample[feature_order]
+
+    fraud_prob = float(model.predict_proba(sample_aligned)[0, 1])
     predicted_label = int(fraud_prob >= threshold)
 
-    # Probability gauge
-    prob_color = "#dc2626" if fraud_prob > 0.5 else "#16a34a"
+    prob_color = "#dc2626" if fraud_prob > threshold else "#16a34a"
     st.markdown(f"""
     <div class="metric-card">
-        <div style="font-size:1rem;color:#64748b;">Fraud Probability</div>
+        <div style="font-size:1rem;color:#64748b;">Fraud Risk Score (Model-estimated score)</div>
         <div style="font-size:2.5rem;font-weight:700;color:{prob_color};">{fraud_prob:.1%}</div>
         <div style="font-size:0.85rem;color:#94a3b8;">at threshold {threshold:.2f} ->
         {'<span class="fraud-badge">⚠️ FRAUD</span>' if predicted_label == 1
@@ -188,8 +211,6 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
 
-    # True label
-    correct = predicted_label == true_label
     outcome_label = {
         (1, 1): "✅ True Positive (correctly flagged fraud)",
         (0, 0): "✅ True Negative (correctly cleared legit)",
@@ -198,9 +219,8 @@ with col1:
     }[(predicted_label, true_label)]
     st.info(f"**Ground truth:** {'🔴 Fraud' if true_label else '🟢 Legit'}  |  {outcome_label}")
 
-    # Key feature values
     st.subheader("📋 Transaction Features")
-    feature_df = sample.T.reset_index()
+    feature_df = sample_aligned.T.reset_index()
     feature_df.columns = ["Feature", "Value"]
     feature_df["Value"] = feature_df["Value"].round(4)
     st.dataframe(feature_df, height=300, use_container_width=True)
@@ -210,38 +230,38 @@ with col2:
 
     try:
         import shap
+        tree_model = model.named_steps["model"] if hasattr(model, "named_steps") and "model" in model.named_steps else model
         rng = np.random.default_rng(config.RANDOM_STATE)
         bg_idx = rng.choice(len(X_test), size=min(50, len(X_test)), replace=False)
-        X_background = X_test.iloc[bg_idx]
+        X_background = X_test.iloc[bg_idx][feature_order]
 
-        explainer = shap.TreeExplainer(model, X_background)
-        explanation = explainer(sample, check_additivity=False)
+        explainer = shap.TreeExplainer(tree_model, X_background)
+        explanation = explainer(sample_aligned, check_additivity=False)
 
         if explanation.values.ndim == 3:
             exp_slice = shap.Explanation(
                 values=explanation.values[0, :, 1],
                 base_values=explanation.base_values[0, 1],
                 data=explanation.data[0],
-                feature_names=X_test.columns.tolist(),
+                feature_names=feature_order,
             )
         else:
             exp_slice = shap.Explanation(
                 values=explanation.values[0],
                 base_values=explanation.base_values[0],
                 data=explanation.data[0],
-                feature_names=X_test.columns.tolist(),
+                feature_names=feature_order,
             )
 
         fig, ax = plt.subplots(figsize=(7, 5))
         shap.plots.waterfall(exp_slice, max_display=12, show=False)
-        plt.title(f"SHAP — Why this prediction? (fraud prob={fraud_prob:.3f})", fontsize=11)
+        plt.title(f"SHAP — Contribution to Score (fraud score={fraud_prob:.3f})", fontsize=11)
         plt.tight_layout()
         st.pyplot(fig, use_container_width=True)
         plt.close(fig)
 
-        # Top contributors
-        top_pos = pd.Series(exp_slice.values, index=X_test.columns).nlargest(3)
-        top_neg = pd.Series(exp_slice.values, index=X_test.columns).nsmallest(3)
+        top_pos = pd.Series(exp_slice.values, index=feature_order).nlargest(3)
+        top_neg = pd.Series(exp_slice.values, index=feature_order).nsmallest(3)
         st.caption(
             f"**Pushing toward fraud:** {', '.join(f'{f} (+{v:.3f})' for f, v in top_pos.items())}  \n"
             f"**Pushing toward legit:** {', '.join(f'{f} ({v:.3f})' for f, v in top_neg.items())}"
@@ -254,9 +274,9 @@ with col2:
 
 # ── Threshold explorer ────────────────────────────────────────────────────────
 st.markdown("---")
-st.subheader("📊 Live Threshold Explorer")
+st.subheader("📊 Live Threshold Explorer (Untouched Test Set)")
 
-threshold_df = get_threshold_df(model, X_test, y_test)
+threshold_df = get_threshold_df(model, X_test[feature_order], y_test)
 current = threshold_df[threshold_df["threshold"] == round(threshold, 2)]
 if current.empty:
     current = threshold_df.iloc[(threshold_df["threshold"] - threshold).abs().argsort()[:1]]
@@ -271,10 +291,9 @@ with col4:
 with col5:
     st.metric("F1 Score", f"{current['f1'].values[0]:.4f}")
 with col6:
-    # Estimate cost at current threshold
     if df_raw is not None:
         fn_cost = float(df_raw.loc[df_raw["Class"] == 1, "Amount"].mean())
-        y_proba_all = model.predict_proba(X_test)[:, 1]
+        y_proba_all = model.predict_proba(X_test[feature_order])[:, 1]
         y_pred_all = (y_proba_all >= threshold).astype(int)
         fn = int(((y_pred_all == 0) & (y_test.values == 1)).sum())
         fp = int(((y_pred_all == 1) & (y_test.values == 0)).sum())
@@ -290,7 +309,7 @@ ax.plot(threshold_df["threshold"], threshold_df["f1"], label="F1", color="#16a34
 ax.axvline(threshold, color="orange", lw=2, ls="--", label=f"Current ({threshold:.2f})")
 ax.set_xlabel("Threshold")
 ax.set_ylabel("Score")
-ax.set_title("Precision / Recall / F1 Trade-off")
+ax.set_title("Precision / Recall / F1 Trade-off (Test Set)")
 ax.legend(fontsize=9)
 ax.set_xlim([0, 1])
 ax.set_ylim([0, 1.05])
@@ -301,21 +320,29 @@ plt.close(fig)
 
 # ── Model comparison table ────────────────────────────────────────────────────
 st.markdown("---")
-st.subheader("📈 Model Comparison (all strategies)")
+st.subheader("📈 Model Selection Leaderboard (Validation Set)")
 
 metrics_data = get_metrics_json()
 if metrics_data:
-    display_cols = ["tag", "precision", "recall", "f1", "auprc", "roc_auc"]
-    rows = [m for m in metrics_data if all(k in m for k in ["precision", "recall", "f1", "auprc"])]
-    if rows:
-        comparison_df = pd.DataFrame(rows)
-        if "tag" in comparison_df.columns:
-            comparison_df = comparison_df.rename(columns={"tag": "Strategy/Model"})
-        show_cols = [c for c in ["Strategy/Model", "model_name", "precision", "recall", "f1", "auprc", "roc_auc"] if c in comparison_df.columns]
+    val_rows = [m for m in metrics_data if m.get("split") == "validation" and "auprc" in m]
+    if val_rows:
+        val_df = pd.DataFrame(val_rows)
+        show_cols = [c for c in ["tag", "model_name", "precision", "recall", "f1", "auprc", "roc_auc"] if c in val_df.columns]
         st.dataframe(
-            comparison_df[show_cols].sort_values("auprc", ascending=False).reset_index(drop=True),
+            val_df[show_cols].sort_values("auprc", ascending=False).reset_index(drop=True),
             use_container_width=True,
-            height=350,
+            height=300,
+        )
+        
+    st.subheader("🏁 Final Untouched Test Set Evaluation")
+    test_rows = [m for m in metrics_data if m.get("split") == "test" and "auprc" in m]
+    if test_rows:
+        test_df = pd.DataFrame(test_rows)
+        show_cols = [c for c in ["tag", "model_name", "threshold", "precision", "recall", "f1", "auprc", "roc_auc"] if c in test_df.columns]
+        st.dataframe(
+            test_df[show_cols].reset_index(drop=True),
+            use_container_width=True,
+            height=200,
         )
 else:
     st.info("Run `python run_pipeline.py` to populate the model comparison table.")
@@ -325,5 +352,5 @@ st.markdown("---")
 st.caption(
     "Built with scikit-learn, XGBoost, SHAP, and Streamlit · "
     "Dataset: ULB Credit Card Fraud (Kaggle) · "
-    "Primary metric: AUPRC (not accuracy — see docs/interview_prep.md)"
+    "Selection Metric: Validation AUPRC · Test set evaluated ONCE on locked model + threshold."
 )

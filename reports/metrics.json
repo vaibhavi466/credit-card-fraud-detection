@@ -1,365 +1,423 @@
 [
   {
     "model_name": "LR_baseline",
+    "split": "validation",
+    "purpose": "model_selection",
     "threshold": 0.5,
-    "precision": 0.061,
-    "recall": 0.9184,
-    "f1": 0.1144,
-    "roc_auc": 0.9722,
-    "auprc": 0.7159,
+    "precision": 0.0591,
+    "recall": 0.899,
+    "f1": 0.1108,
+    "roc_auc": 0.9747,
+    "auprc": 0.6831,
     "confusion_matrix": [
       [
-        55478,
-        1386
+        55445,
+        1418
       ],
       [
-        8,
-        90
+        10,
+        89
       ]
     ],
-    "tn": 55478,
-    "fp": 1386,
-    "fn": 8,
-    "tp": 90,
+    "tn": 55445,
+    "fp": 1418,
+    "fn": 10,
+    "tp": 89,
     "tag": "LR_baseline"
   },
   {
     "model_name": "class_weight_LR",
+    "split": "validation",
+    "purpose": "model_selection",
     "threshold": 0.5,
-    "precision": 0.061,
-    "recall": 0.9184,
-    "f1": 0.1144,
-    "roc_auc": 0.9722,
-    "auprc": 0.7159,
+    "precision": 0.0591,
+    "recall": 0.899,
+    "f1": 0.1108,
+    "roc_auc": 0.9747,
+    "auprc": 0.6831,
     "confusion_matrix": [
       [
-        55478,
-        1386
+        55445,
+        1418
       ],
       [
-        8,
-        90
+        10,
+        89
       ]
     ],
-    "tn": 55478,
-    "fp": 1386,
-    "fn": 8,
-    "tp": 90,
+    "tn": 55445,
+    "fp": 1418,
+    "fn": 10,
+    "tp": 89,
     "tag": "class_weight_LR"
   },
   {
     "model_name": "class_weight_RF",
+    "split": "validation",
+    "purpose": "model_selection",
     "threshold": 0.5,
-    "precision": 0.8966,
-    "recall": 0.7959,
-    "f1": 0.8432,
-    "roc_auc": 0.9573,
-    "auprc": 0.8629,
+    "precision": 0.8889,
+    "recall": 0.7273,
+    "f1": 0.8,
+    "roc_auc": 0.9466,
+    "auprc": 0.7985,
     "confusion_matrix": [
       [
-        56855,
+        56854,
         9
+      ],
+      [
+        27,
+        72
+      ]
+    ],
+    "tn": 56854,
+    "fp": 9,
+    "fn": 27,
+    "tp": 72,
+    "tag": "class_weight_RF"
+  },
+  {
+    "model_name": "class_weight_XGB",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.9351,
+    "recall": 0.7273,
+    "f1": 0.8182,
+    "roc_auc": 0.9737,
+    "auprc": 0.8153,
+    "confusion_matrix": [
+      [
+        56858,
+        5
+      ],
+      [
+        27,
+        72
+      ]
+    ],
+    "tn": 56858,
+    "fp": 5,
+    "fn": 27,
+    "tp": 72,
+    "tag": "class_weight_XGB"
+  },
+  {
+    "model_name": "undersample_LR",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.0363,
+    "recall": 0.899,
+    "f1": 0.0698,
+    "roc_auc": 0.972,
+    "auprc": 0.4864,
+    "confusion_matrix": [
+      [
+        54500,
+        2363
+      ],
+      [
+        10,
+        89
+      ]
+    ],
+    "tn": 54500,
+    "fp": 2363,
+    "fn": 10,
+    "tp": 89,
+    "tag": "undersample_LR"
+  },
+  {
+    "model_name": "undersample_RF",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.0508,
+    "recall": 0.8687,
+    "f1": 0.0959,
+    "roc_auc": 0.9739,
+    "auprc": 0.6989,
+    "confusion_matrix": [
+      [
+        55255,
+        1608
+      ],
+      [
+        13,
+        86
+      ]
+    ],
+    "tn": 55255,
+    "fp": 1608,
+    "fn": 13,
+    "tp": 86,
+    "tag": "undersample_RF"
+  },
+  {
+    "model_name": "undersample_XGB",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.0438,
+    "recall": 0.8889,
+    "f1": 0.0834,
+    "roc_auc": 0.9746,
+    "auprc": 0.6118,
+    "confusion_matrix": [
+      [
+        54940,
+        1923
+      ],
+      [
+        11,
+        88
+      ]
+    ],
+    "tn": 54940,
+    "fp": 1923,
+    "fn": 11,
+    "tp": 88,
+    "tag": "undersample_XGB"
+  },
+  {
+    "model_name": "smote_LR",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.0568,
+    "recall": 0.8788,
+    "f1": 0.1067,
+    "roc_auc": 0.9716,
+    "auprc": 0.6737,
+    "confusion_matrix": [
+      [
+        55419,
+        1444
+      ],
+      [
+        12,
+        87
+      ]
+    ],
+    "tn": 55419,
+    "fp": 1444,
+    "fn": 12,
+    "tp": 87,
+    "tag": "smote_LR"
+  },
+  {
+    "model_name": "smote_RF",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.8736,
+    "recall": 0.7677,
+    "f1": 0.8172,
+    "roc_auc": 0.9717,
+    "auprc": 0.8019,
+    "confusion_matrix": [
+      [
+        56852,
+        11
+      ],
+      [
+        23,
+        76
+      ]
+    ],
+    "tn": 56852,
+    "fp": 11,
+    "fn": 23,
+    "tp": 76,
+    "tag": "smote_RF"
+  },
+  {
+    "model_name": "smote_XGB",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.4483,
+    "recall": 0.7879,
+    "f1": 0.5714,
+    "roc_auc": 0.9727,
+    "auprc": 0.7821,
+    "confusion_matrix": [
+      [
+        56767,
+        96
+      ],
+      [
+        21,
+        78
+      ]
+    ],
+    "tn": 56767,
+    "fp": 96,
+    "fn": 21,
+    "tp": 78,
+    "tag": "smote_XGB"
+  },
+  {
+    "model_name": "smote_tomek_LR",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.0568,
+    "recall": 0.8788,
+    "f1": 0.1067,
+    "roc_auc": 0.9716,
+    "auprc": 0.6737,
+    "confusion_matrix": [
+      [
+        55419,
+        1444
+      ],
+      [
+        12,
+        87
+      ]
+    ],
+    "tn": 55419,
+    "fp": 1444,
+    "fn": 12,
+    "tp": 87,
+    "tag": "smote_tomek_LR"
+  },
+  {
+    "model_name": "smote_tomek_RF",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.8736,
+    "recall": 0.7677,
+    "f1": 0.8172,
+    "roc_auc": 0.9717,
+    "auprc": 0.8019,
+    "confusion_matrix": [
+      [
+        56852,
+        11
+      ],
+      [
+        23,
+        76
+      ]
+    ],
+    "tn": 56852,
+    "fp": 11,
+    "fn": 23,
+    "tp": 76,
+    "tag": "smote_tomek_RF"
+  },
+  {
+    "model_name": "smote_tomek_XGB",
+    "split": "validation",
+    "purpose": "model_selection",
+    "threshold": 0.5,
+    "precision": 0.4483,
+    "recall": 0.7879,
+    "f1": 0.5714,
+    "roc_auc": 0.9727,
+    "auprc": 0.7821,
+    "confusion_matrix": [
+      [
+        56767,
+        96
+      ],
+      [
+        21,
+        78
+      ]
+    ],
+    "tn": 56767,
+    "fp": 96,
+    "fn": 21,
+    "tp": 78,
+    "tag": "smote_tomek_XGB"
+  },
+  {
+    "fn_cost_per_transaction": 130.15,
+    "fp_cost_per_transaction": 5.0,
+    "optimal_threshold": 0.06,
+    "min_total_cost": 2677.91,
+    "split": "validation",
+    "purpose": "threshold_selection",
+    "model_name": "class_weight_XGB",
+    "tag": "cost_analysis"
+  },
+  {
+    "model_name": "class_weight_XGB_test_default",
+    "split": "test",
+    "purpose": "final_evaluation",
+    "threshold": 0.5,
+    "precision": 0.9398,
+    "recall": 0.7959,
+    "f1": 0.8619,
+    "roc_auc": 0.9764,
+    "auprc": 0.8771,
+    "confusion_matrix": [
+      [
+        56859,
+        5
       ],
       [
         20,
         78
       ]
     ],
-    "tn": 56855,
-    "fp": 9,
+    "tn": 56859,
+    "fp": 5,
     "fn": 20,
     "tp": 78,
-    "tag": "class_weight_RF"
+    "tag": "class_weight_XGB_test_default"
+  },
+  {
+    "model_name": "class_weight_XGB_test_optimal",
+    "split": "test",
+    "purpose": "final_evaluation",
+    "threshold": 0.06,
+    "precision": 0.8019,
+    "recall": 0.8673,
+    "f1": 0.8333,
+    "roc_auc": 0.9764,
+    "auprc": 0.8771,
+    "confusion_matrix": [
+      [
+        56843,
+        21
+      ],
+      [
+        13,
+        85
+      ]
+    ],
+    "tn": 56843,
+    "fp": 21,
+    "fn": 13,
+    "tp": 85,
+    "tag": "class_weight_XGB_test_optimal"
   },
   {
     "model_name": "class_weight_XGB",
-    "threshold": 0.5,
-    "precision": 0.9048,
-    "recall": 0.7755,
-    "f1": 0.8352,
-    "roc_auc": 0.9811,
-    "auprc": 0.8644,
-    "confusion_matrix": [
-      [
-        56856,
-        8
-      ],
-      [
-        22,
-        76
-      ]
-    ],
-    "tn": 56856,
-    "fp": 8,
-    "fn": 22,
-    "tp": 76,
-    "tag": "class_weight_XGB"
-  },
-  {
-    "model_name": "undersample_LR",
-    "threshold": 0.5,
-    "precision": 0.0384,
-    "recall": 0.9184,
-    "f1": 0.0738,
-    "roc_auc": 0.9759,
-    "auprc": 0.6778,
-    "confusion_matrix": [
-      [
-        54612,
-        2252
-      ],
-      [
-        8,
-        90
-      ]
-    ],
-    "tn": 54612,
-    "fp": 2252,
-    "fn": 8,
-    "tp": 90,
-    "tag": "undersample_LR"
-  },
-  {
-    "model_name": "undersample_RF",
-    "threshold": 0.5,
-    "precision": 0.0408,
-    "recall": 0.9082,
-    "f1": 0.0781,
-    "roc_auc": 0.978,
-    "auprc": 0.702,
-    "confusion_matrix": [
-      [
-        54773,
-        2091
-      ],
-      [
-        9,
-        89
-      ]
-    ],
-    "tn": 54773,
-    "fp": 2091,
-    "fn": 9,
-    "tp": 89,
-    "tag": "undersample_RF"
-  },
-  {
-    "model_name": "undersample_XGB",
-    "threshold": 0.5,
-    "precision": 0.038,
-    "recall": 0.9184,
-    "f1": 0.073,
-    "roc_auc": 0.9778,
-    "auprc": 0.6653,
-    "confusion_matrix": [
-      [
-        54586,
-        2278
-      ],
-      [
-        8,
-        90
-      ]
-    ],
-    "tn": 54586,
-    "fp": 2278,
-    "fn": 8,
-    "tp": 90,
-    "tag": "undersample_XGB"
-  },
-  {
-    "model_name": "smote_LR",
-    "threshold": 0.5,
-    "precision": 0.058,
-    "recall": 0.9184,
-    "f1": 0.1092,
-    "roc_auc": 0.9699,
-    "auprc": 0.7249,
-    "confusion_matrix": [
-      [
-        55403,
-        1461
-      ],
-      [
-        8,
-        90
-      ]
-    ],
-    "tn": 55403,
-    "fp": 1461,
-    "fn": 8,
-    "tp": 90,
-    "tag": "smote_LR"
-  },
-  {
-    "model_name": "smote_RF",
-    "threshold": 0.5,
-    "precision": 0.8454,
-    "recall": 0.8367,
-    "f1": 0.841,
-    "roc_auc": 0.9731,
-    "auprc": 0.8747,
-    "confusion_matrix": [
-      [
-        56849,
-        15
-      ],
-      [
-        16,
-        82
-      ]
-    ],
-    "tn": 56849,
-    "fp": 15,
-    "fn": 16,
-    "tp": 82,
-    "tag": "smote_RF"
-  },
-  {
-    "model_name": "smote_XGB",
-    "threshold": 0.5,
-    "precision": 0.3723,
-    "recall": 0.8776,
-    "f1": 0.5228,
-    "roc_auc": 0.9756,
-    "auprc": 0.8479,
-    "confusion_matrix": [
-      [
-        56719,
-        145
-      ],
-      [
-        12,
-        86
-      ]
-    ],
-    "tn": 56719,
-    "fp": 145,
-    "fn": 12,
-    "tp": 86,
-    "tag": "smote_XGB"
-  },
-  {
-    "model_name": "smote_tomek_LR",
-    "threshold": 0.5,
-    "precision": 0.058,
-    "recall": 0.9184,
-    "f1": 0.1092,
-    "roc_auc": 0.9699,
-    "auprc": 0.7249,
-    "confusion_matrix": [
-      [
-        55403,
-        1461
-      ],
-      [
-        8,
-        90
-      ]
-    ],
-    "tn": 55403,
-    "fp": 1461,
-    "fn": 8,
-    "tp": 90,
-    "tag": "smote_tomek_LR"
-  },
-  {
-    "model_name": "smote_tomek_RF",
-    "threshold": 0.5,
-    "precision": 0.8454,
-    "recall": 0.8367,
-    "f1": 0.841,
-    "roc_auc": 0.9731,
-    "auprc": 0.8747,
-    "confusion_matrix": [
-      [
-        56849,
-        15
-      ],
-      [
-        16,
-        82
-      ]
-    ],
-    "tn": 56849,
-    "fp": 15,
-    "fn": 16,
-    "tp": 82,
-    "tag": "smote_tomek_RF"
-  },
-  {
-    "model_name": "smote_tomek_XGB",
-    "threshold": 0.5,
-    "precision": 0.3723,
-    "recall": 0.8776,
-    "f1": 0.5228,
-    "roc_auc": 0.9756,
-    "auprc": 0.8479,
-    "confusion_matrix": [
-      [
-        56719,
-        145
-      ],
-      [
-        12,
-        86
-      ]
-    ],
-    "tn": 56719,
-    "fp": 145,
-    "fn": 12,
-    "tp": 86,
-    "tag": "smote_tomek_XGB"
-  },
-  {
-    "model_name": "smote_RF_optimal_threshold",
-    "threshold": 0.32,
-    "precision": 0.7586,
-    "recall": 0.898,
-    "f1": 0.8224,
-    "roc_auc": 0.9731,
-    "auprc": 0.8747,
-    "confusion_matrix": [
-      [
-        56836,
-        28
-      ],
-      [
-        10,
-        88
-      ]
-    ],
-    "tn": 56836,
-    "fp": 28,
-    "fn": 10,
-    "tp": 88,
-    "tag": "smote_RF_optimal_threshold"
-  },
-  {
-    "fn_cost_per_transaction": 122.21,
-    "fp_cost_per_transaction": 5.0,
-    "optimal_threshold": 0.32,
-    "min_total_cost": 1362.11,
-    "model_name": "smote_RF",
-    "tag": "cost_analysis"
-  },
-  {
-    "model_name": "smote_RF",
     "top_shap_features": [
       "V4",
       "V14",
-      "V1"
+      "V12"
     ],
     "tag": "shap_summary"
   },
   {
     "model_name": "Autoencoder (unsupervised)",
-    "threshold": 0.462294,
-    "precision": 0.0278,
-    "recall": 0.8776,
-    "f1": 0.0539,
-    "auprc": 0.4788,
-    "roc_auc": 0.9589,
+    "split": "test",
+    "purpose": "final_evaluation",
+    "threshold": 0.516757,
+    "precision": 0.0281,
+    "recall": 0.8673,
+    "f1": 0.0545,
+    "auprc": 0.4338,
+    "roc_auc": 0.9609,
     "threshold_percentile": 95,
     "tag": "autoencoder"
   }

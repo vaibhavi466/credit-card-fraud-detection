@@ -45,23 +45,25 @@ def evaluate_model(
     y_test: pd.Series,
     threshold: float = 0.5,
     model_name: str = "",
+    split: str = "test",
+    purpose: str = "final_evaluation",
 ) -> dict:
     """
-    Evaluate a fitted model on the test set.
+    Evaluate a fitted model on a given dataset split (validation or test).
 
     Parameters
     ----------
-    model     : fitted sklearn-compatible classifier
-    X_test    : feature matrix (test set only — never touched during training)
+    model     : fitted sklearn-compatible classifier or pipeline
+    X_test    : feature matrix (validation or test set)
     y_test    : true labels
-    threshold : decision threshold (default 0.5, but see cost_analysis.py for
-                a principled choice)
+    threshold : decision threshold (default 0.5)
     model_name: string label for logging
+    split     : "train", "validation", or "test"
+    purpose   : "model_selection" or "final_evaluation"
 
     Returns
     -------
-    dict with keys: precision, recall, f1, roc_auc, auprc,
-                    confusion_matrix, threshold, model_name
+    dict with metrics, confusion matrix, split, and purpose tags.
     """
     # Get probability scores (not binary predictions) for threshold-independent
     # metrics (AUPRC, ROC-AUC) and for threshold sweep experiments.
@@ -83,6 +85,8 @@ def evaluate_model(
 
     metrics = {
         "model_name": model_name,
+        "split": split,
+        "purpose": purpose,
         "threshold": threshold,
         "precision": round(precision, 4),
         "recall": round(recall, 4),
@@ -98,7 +102,7 @@ def evaluate_model(
 
     if model_name:
         print(
-            f"[{model_name}] threshold={threshold:.2f} | "
+            f"[{model_name} | {split}] threshold={threshold:.2f} | "
             f"P={precision:.4f} R={recall:.4f} F1={f1:.4f} "
             f"AUPRC={auprc:.4f} ROC-AUC={roc_auc:.4f}"
         )
@@ -129,12 +133,16 @@ def evaluate_all_thresholds(
     return pd.DataFrame(rows)
 
 
+def reset_metrics_json() -> None:
+    """Safely initialize/reset reports/metrics.json for a fresh full run."""
+    config.REPORTS_DIR.mkdir(exist_ok=True)
+    with open(config.METRICS_PATH, "w") as f:
+        json.dump([], f, indent=2)
+
+
 def log_metrics_json(metrics: dict, tag: str = None) -> None:
     """
-    Append (or initialise) a metrics entry to reports/metrics.json.
-
-    The JSON file is a list of dicts so it can hold results from all
-    strategy/model combinations in one place.
+    Append (or update) a metrics entry in reports/metrics.json.
     """
     config.REPORTS_DIR.mkdir(exist_ok=True)
     path = config.METRICS_PATH
@@ -145,8 +153,11 @@ def log_metrics_json(metrics: dict, tag: str = None) -> None:
 
     # Load existing entries or start fresh
     if path.exists():
-        with open(path) as f:
-            existing = json.load(f)
+        try:
+            with open(path) as f:
+                existing = json.load(f)
+        except Exception:
+            existing = []
     else:
         existing = []
 
@@ -157,6 +168,7 @@ def log_metrics_json(metrics: dict, tag: str = None) -> None:
 
     with open(path, "w") as f:
         json.dump(existing, f, indent=2)
+
 
 
 # ── Plotting functions ────────────────────────────────────────────────────────

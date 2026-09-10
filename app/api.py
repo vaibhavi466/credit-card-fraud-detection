@@ -6,6 +6,7 @@ Launch with:
 """
 
 import sys
+import logging
 from pathlib import Path
 from typing import Optional
 import json
@@ -19,14 +20,16 @@ from pydantic import BaseModel, Field
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import config
 
+logger = logging.getLogger("fraud_detection_api")
+
 # Global variables for model resources
 model = None
 scaler = None
-optimal_threshold = 0.32  # Default fallback if metrics.json is missing or fails
+optimal_threshold = getattr(config, "DEFAULT_OPERATING_THRESHOLD", 0.50)
 
 
 def load_resources():
-    """Load model, scaler, and dynamic threshold."""
+    """Load model, scaler, and dynamic validation-locked operating threshold."""
     global model, scaler, optimal_threshold
     model_path = config.MODELS_DIR / "best_model.joblib"
     scaler_path = config.MODELS_DIR / "scaler.joblib"
@@ -38,7 +41,7 @@ def load_resources():
 
     model = joblib.load(model_path)
     scaler = joblib.load(scaler_path)
-    print("[OK] Model and scaler loaded successfully.")
+    logger.info("Model and scaler loaded successfully.")
 
     # Dynamically load optimal threshold from reports/metrics.json if available
     metrics_path = config.REPORTS_DIR / "metrics.json"
@@ -49,10 +52,10 @@ def load_resources():
             for entry in metrics_data:
                 if entry.get("tag") == "cost_analysis" and "optimal_threshold" in entry:
                     optimal_threshold = float(entry["optimal_threshold"])
-                    print(f"[OK] Dynamically loaded optimal threshold from metrics: {optimal_threshold}")
+                    logger.info(f"Dynamically loaded optimal threshold from metrics: {optimal_threshold}")
                     break
         except Exception as e:
-            print(f"[Warning] Failed to dynamically load optimal threshold: {e}. Using default: {optimal_threshold}")
+            logger.warning(f"Failed to dynamically load optimal threshold: {e}. Using fallback: {optimal_threshold}")
 
 
 @asynccontextmanager
@@ -73,7 +76,7 @@ app = FastAPI(
 class TransactionInput(BaseModel):
     """Pydantic schema representing the 30 numerical input features for a transaction."""
     Time: float = Field(..., description="Seconds elapsed since the first transaction", examples=[0.0])
-    Amount: float = Field(..., description="Transaction amount in dollars", examples=[99.99])
+    Amount: float = Field(..., description="Transaction amount", examples=[99.99])
     V1: float = Field(..., description="PCA anonymized feature V1", examples=[-1.3598])
     V2: float = Field(..., description="PCA anonymized feature V2", examples=[-0.0727])
     V3: float = Field(..., description="PCA anonymized feature V3", examples=[2.5363])
@@ -106,7 +109,7 @@ class TransactionInput(BaseModel):
 
 class PredictionResponse(BaseModel):
     """Output prediction response format."""
-    fraud_probability: float = Field(..., description="Probability score between 0.0 and 1.0")
+    fraud_probability: float = Field(..., description="Model-estimated fraud score/probability between 0.0 and 1.0")
     decision: str = Field(..., description="Classification outcome: 'flag' (suspected fraud) or 'approve'")
     threshold: float = Field(..., description="Probability threshold used for the decision")
 
@@ -128,7 +131,7 @@ def predict_transaction(
         None,
         ge=0.01,
         le=0.99,
-        description="Override the default cost-optimal threshold (0.32)",
+        description="Override the default operating threshold",
     ),
 ):
     """
@@ -151,9 +154,10 @@ def predict_transaction(
         df_scaled = df.copy()
         df_scaled[cols_to_scale] = scaled_features
     except Exception as e:
+        logger.error(f"Preprocessing error in scaling: {e}")
         raise HTTPException(
             status_code=400,
-            detail=f"Preprocessing error: failed to scale features. Details: {e}",
+            detail="Preprocessing error: failed to scale features.",
         )
 
     # 3. Model Inference
@@ -167,9 +171,10 @@ def predict_transaction(
         df_scaled = df_scaled[feature_order]
         fraud_prob = float(model.predict_proba(df_scaled)[0, 1])
     except Exception as e:
+        logger.error(f"Model scoring error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Model scoring failed. Details: {e}",
+            detail="Model scoring failed.",
         )
 
     # 4. Make decision based on threshold

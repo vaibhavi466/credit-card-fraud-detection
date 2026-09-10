@@ -3,8 +3,8 @@ config.py — Central configuration for the Credit Card Fraud Detection pipeline
 
 All constants that appear in multiple modules live here so they can be changed
 in one place and stay consistent everywhere. This is also the authoritative
-source for random seeds — using the same seed everywhere guarantees that any
-re-run on the same data produces byte-identical results.
+source for random seeds — using fixed random seeds ensures deterministic
+reproducibility across runs on identical software environments.
 """
 
 from pathlib import Path
@@ -30,9 +30,10 @@ TARGET_COL = "Class"
 FRAUD_LABEL = 1
 LEGIT_LABEL = 0
 
-# ── Train / test split ───────────────────────────────────────────────────────
-TEST_SIZE = 0.2          # 80/20 stratified split
-# Stratified on Class so the ≈0.17% fraud rate is preserved in both folds.
+# ── Train / Validation / Test split ──────────────────────────────────────────
+TEST_SIZE = 0.20                      # 20% final held-out test set
+VALIDATION_SIZE_WITHIN_TRAIN = 0.25   # 25% of the 80% train_val set (giving 60% Train, 20% Val, 20% Test)
+DEFAULT_OPERATING_THRESHOLD = 0.50
 
 # ── Feature engineering ──────────────────────────────────────────────────────
 # V1–V28 are already PCA-transformed by the dataset authors; we only scale
